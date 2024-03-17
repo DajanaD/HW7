@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, func
+from sqlalchemy import func
 from connect_db import session
 from models import Student, Grade, Group, Subject, Teacher
 
