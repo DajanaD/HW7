@@ -1,42 +1,51 @@
-from datetime import datetime
-
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql.schema import ForeignKey, Table
-from sqlalchemy.sql.sqltypes import DateTime
 
 
 Base = declarative_base()
 
-# таблиця для зв'язку many-to-many між таблицями notes та tags
-note_m2m_tag = Table(
-    "note_m2m_tag",
-    Base.metadata,
-    Column("id", Integer, primary_key=True),
-    Column("note", Integer, ForeignKey("notes.id", ondelete="CASCADE")),
-    Column("tag", Integer, ForeignKey("tags.id", ondelete="CASCADE")),
-)
-
-# Таблиця notes, де зберігатимуться назви завдань
-class Note(Base):
-    __tablename__ = "notes"
+class Group(Base):
+    __tablename__ = 'groups'
+    
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), nullable=False)
-    created = Column(DateTime, default=datetime.now())
-    records = relationship("Record", cascade="all, delete", backref="note")
-    tags = relationship("Tag", secondary=note_m2m_tag, backref="notes", passive_deletes=True)
+    name = Column(String)
+    
+    students = relationship('Student', backref='group')
 
-# Таблиця records, де зберігатимуться записи справ для конкретного завдання з таблиці notes - зв'язок one-to-many, поле note_id
-class Record(Base):
-    __tablename__ = "records"
+class Teacher(Base):
+    __tablename__ = 'teachers'
+    
     id = Column(Integer, primary_key=True)
-    description = Column(String(150), nullable=False)
-    done = Column(Boolean, default=False)
-    note_id = Column(Integer, ForeignKey(Note.id, ondelete="CASCADE"))
+    name = Column(String)
+    
+    subjects = relationship('Subject', backref='teacher')
 
-# Таблиця tags, де зберігається набір тегів для списку справ.
-class Tag(Base):
-    __tablename__ = "tags"
+class Student(Base):
+    __tablename__ = 'students'
+    
     id = Column(Integer, primary_key=True)
-    name = Column(String(25), nullable=False, unique=True)
+    name = Column(String)
+    group_id = Column(Integer, ForeignKey('groups.id'))
+
+    grades = relationship('Grade', backref='student')
+
+class Subject(Base):
+    __tablename__ = 'subjects'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    teacher_id = Column(Integer, ForeignKey('teachers.id'))
+
+    grades = relationship('Grade', backref='subject')
+
+class Grade(Base):
+    __tablename__ = 'grades'
+    
+    id = Column(Integer, primary_key=True)
+    value = Column(Integer)
+    date_received = Column(DateTime)
+    student_id = Column(Integer, ForeignKey('students.id'))
+    subject_id = Column(Integer, ForeignKey('subjects.id'))
+
+
