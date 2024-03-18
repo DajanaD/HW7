@@ -1,18 +1,22 @@
-from sqlalchemy import func
+from sqlalchemy import func, desc, and_
 from connect_db import session
 from models import Student, Grade, Group, Subject, Teacher
 
-
+# Створюємо запити ORM SQLAlchemy
 def select_1():
-    students_avg_scores = session.query(Student, func.avg(Grade.value).label('avg_score')).join(Grade).group_by(Student).order_by(func.avg(Grade.value).desc()).limit(5).all()
+    students_avg_scores = (session.query(Student.name, func.round(func.avg(Grade.value), 2).label('average_grade')) \
+              .select_from(Grade).join(Student).group_by(Student.id)
+              .order_by(desc('average_grade')).limit(5).all())
+
     return students_avg_scores
 
 def select_2(subject_name):
-    student = session.query(Student).join(Grade).join(Subject).filter(Subject.name == subject_name).group_by(Student).order_by(func.avg(Grade.value).desc()).first()
+    student = (session.query(Student).join(Grade).join(Subject).filter(Subject.name == subject_name).group_by(Student)
+              .order_by(func.avg(Grade.value).desc()).first())
     return student
 
 def select_3(subject_name):
-    group_avg_score = session.query(Group, func.avg(Grade.value).label('avg_score')).join(Student).join(Grade).join(Subject).filter(Subject.name == subject_name).group_by(Group).all()
+    group_avg_score = (session.query(func.avg(Grade.value)).join(Subject).filter(Subject.name == subject_name).scalar())
     return group_avg_score
 
 def select_4():
@@ -20,15 +24,15 @@ def select_4():
     return overall_avg_score
 
 def select_5(teacher_name):
-    teacher_courses = session.query(Subject).join(Teacher).filter(Teacher.name == teacher_name).all()
+    teacher_courses = (session.query(Subject.name).join(Teacher).filter(Teacher.name == teacher_name).all())
     return teacher_courses
 
 def select_6(group_name):
-    group_students = session.query(Student).join(Group).filter(Group.name == group_name).all()
+    group_students = session.query(Student.name).join(Group).filter(Group.name == group_name).all()
     return group_students
 
 def select_7(group_name, subject_name):
-    group_subject_grades = session.query(Student, Grade).join(Group).join(Grade).join(Subject).filter(Group.name == group_name, Subject.name == subject_name).all()
+    group_subject_grades = session.query(Student.name, Grade.value).join(Group).join(Grade).join(Subject).filter(Group.name == group_name, Subject.name == subject_name).all()
     return group_subject_grades
 
 def select_8(teacher_name):
@@ -36,11 +40,15 @@ def select_8(teacher_name):
     return teacher_avg_scores
 
 def select_9(student_name):
-    student_courses = session.query(Subject).join(Grade).join(Student).filter(Student.name == student_name).all()
+    student_courses = (session.query(Subject.name).join(Grade).join(Student).filter(Student.name == student_name).distinct().all())
     return student_courses
 
-def select_10(student_name, teacher_name):
-    student_teacher_courses = session.query(Subject).join(Grade).join(Student).join(Teacher).filter(Student.name == student_name, Teacher.name == teacher_name).all()
+def select_10(teacher_id, student_id):
+    student_teacher_courses = (session.query(Teacher.name, Student.name, Subject.name) \
+              .select_from(Subject).join(Teacher).join(Grade).join(Student)
+              .filter(and_(Teacher.id == teacher_id,
+                           Student.id == student_id)).group_by(Subject.name, Teacher.name, Student.name)
+              .order_by(Subject.name).all())
     return student_teacher_courses
 
 
@@ -48,19 +56,16 @@ def main():
        
     # Використання функції select_1
     print("Знайти 5 студентів із найбільшим середнім балом з усіх предметів:")
-    students_with_highest_avg_grades = select_1()
-    for student in students_with_highest_avg_grades:
-        print(student.name)
+    for student in select_1():
+        print(student[0])
 
     # Використання функції select_2
     print("\nЗнайти студента із найвищим середнім балом з певного предмета:")
-    highest_avg_grade_student = select_2("Quality-focused client-driven Graphic Interface")
-    print(highest_avg_grade_student.name)
+    print(select_2("Fully-configurable clear-thinking benchmark"))
 
     # Використання функції select_3
     print("\nЗнайти середній бал у групах з певного предмета:")
-    avg_grades_by_group = select_3("Quality-focused client-driven Graphic Interface")
-    for avg_grade in avg_grades_by_group:
+    for avg_grade in select_3("Fully-configurable clear-thinking benchmark"):
         print(avg_grade[0])
 
     # Використання функції select_4
@@ -100,8 +105,8 @@ def main():
     # Використання функції select_10
     print("\nСписок курсів, які певному студенту читає певний викладач:")
     courses_taught_to_student_by_teacher = select_10("Gina Smith", "Megan Brown")
-    for course in courses_taught_to_student_by_teacher:
-        print(course.name)
+    for course in select_10(8, 51):
+        print(course)
 
 if __name__ == "__main__":
     main()
